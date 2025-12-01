@@ -63,3 +63,34 @@ NVIDIA CORPORATION,NVDA,Technology,yfinance,2025-08-15
 AMAZON COM INC,AMZN,Consumer Cyclical,yfinance,2025-08-15
 JPMORGAN CHASE & CO.,JPM,Financial Services,yfinance,2025-08-15
 MASTERCARD INCORPORATED,MA,Financial Services,yfinance,2025-08-15
+SPDR S&P 500 ETF TR,SPY,Unknown,openai,2025-12-01
+ISHARES INC,ACWI,Unknown,openai,2025-12-01
+ALIBABA GROUP HLDG LTD,BABA,Consumer Cyclical,yfinance,2025-12-01
+SPDR GOLD TR,GLD,Unknown,openai,2025-12-01
+BOOKING HOLDINGS INC,BKNG,Consumer Cyclical,yfinance,2025-12-01
+FISERV INC,FISV,Financial Services,openai,2025-12-01
+PAYPAL HLDGS INC,PYPL,Financial Services,yfinance,2025-12-01
+ADOBE INC,ADBE,Technology,yfinance,2025-12-01
+PDD HOLDINGS INC,PDDH,Financial Services,openai,2025-12-01
+ALTRIA GROUP INC,MO,Consumer Defensive,yfinance,2025-12-01
+BAIDU INC,BIDU,Communication Services,yfinance,2025-12-01
+FORTINET INC,FTNT,Technology,yfinance,2025-12-01
+GE VERNOVA INC,GVINC,Industrials,openai,2025-12-01
+COMCAST CORP NEW,CMCSA,Communication Services,yfinance,2025-12-01
+SERVICENOW INC,NOW,Technology,yfinance,2025-12-01
+THE CIGNA GROUP,CI,Healthcare,yfinance,2025-12-01
+QUALCOMM INC,QCOM,Technology,yfinance,2025-12-01
+EXPEDIA GROUP INC,EXPE,Consumer Cyclical,yfinance,2025-12-01
+PALO ALTO NETWORKS INC,PANW,Technology,yfinance,2025-12-01
+METLIFE INC,MET,Financial Services,yfinance,2025-12-01
+CITIGROUP INC,C,Financial Services,yfinance,2025-12-01
+BRISTOL-MYERS SQUIBB CO,BMY,Healthcare,yfinance,2025-12-01
+LAM RESEARCH CORP,LRCX,Technology,yfinance,2025-12-01
+BRITISH AMERN TOB PLC,BTI,Consumer Defensive,yfinance,2025-12-01
+GLOBAL PMTS INC,GPN,Industrials,yfinance,2025-12-01
+JD.COM INC,JD,Consumer Cyclical,yfinance,2025-12-01
+PINTEREST INC,PINS,Communication Services,yfinance,2025-12-01
+PULTE GROUP INC,PHM,Consumer Cyclical,yfinance,2025-12-01
+UNITED AIRLS HLDGS INC,UAL,Industrials,yfinance,2025-12-01
+MCKESSON CORP,MCK,Healthcare,yfinance,2025-12-01
+WELLS FARGO CO NEW,WFC,Financial Services,yfinance,2025-12-01

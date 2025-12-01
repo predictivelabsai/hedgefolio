@@ -3,8 +3,6 @@ streamlit
 pandas
 numpy
 plotly
-seaborn
-matplotlib
 requests
 openai
 langchain
@@ -16,4 +14,6 @@ openpyxl
 xlrd
 zipfile36
 yfinance
-
+sqlalchemy
+psycopg2-binary
+postmarker
