@@ -1,425 +1,250 @@
-# Hedge Fund Index MVP
+# Hedgefolio
 
-A comprehensive hedge fund analysis platform built with Streamlit, providing insights into institutional investment patterns through SEC 13F filings data.
+**Invest like a hedge fund manager.** Monitor the portfolios of the world's top hedge funds through SEC 13F filings analysis.
 
 ## Overview
 
-The Hedge Fund Index MVP is a proof-of-concept application that processes and visualizes SEC 13F filings to provide comprehensive analysis of hedge fund and institutional investor portfolios. The application offers interactive dashboards, portfolio heatmaps, holdings analysis, and market insights based on real SEC filing data.
+Hedgefolio is a comprehensive hedge fund analysis platform built with Streamlit and PostgreSQL. It processes SEC 13F filings to provide insights into institutional investment patterns, allowing retail investors to see what the smart money is buying and selling.
 
 ## Features
 
-### 🏠 Overview Dashboard
-- **Key Metrics**: Total funds, holdings, AUM, and unique securities
-- **Top Funds Ranking**: Ranked list of funds by assets under management
-- **Real-time Data**: Based on latest SEC 13F filings
-
-### 📈 Fund Analysis
-- **Portfolio Metrics**: Detailed fund-specific statistics
-- **Interactive Treemap**: Advanced hierarchical visualization with real-time price data
-- **Sector Analysis**: Portfolio breakdown by industry with performance metrics
-- **Top Holdings Tables**: Comprehensive holdings breakdown with values and percentages
-- **Fund Selection**: Dropdown to analyze any fund in the dataset
+### 📊 Fund Analysis (Home Page)
+- **Portfolio Treemaps**: Interactive visualization of fund holdings by sector
+- **Real-time Price Data**: 1-month price changes from Yahoo Finance
+- **Sector Analysis**: Portfolio breakdown by industry
+- **Top Holdings**: Detailed position information with values and percentages
 
 ### 🔍 Holdings Explorer
-- **Advanced Search**: Intelligent search for securities by ticker, company name, or partial matches
-- **Cross-Fund Analysis**: See which funds hold specific securities with position sizes
-- **Fuzzy Matching**: Find securities even with partial or approximate names
-- **Fund Holdings**: Complete list of funds holding searched securities with values
+- **Security Search**: Find which funds hold specific stocks
+- **Cross-Fund Analysis**: Compare positions across multiple funds
+- **Aggregated Data**: Total value and share counts across all holders
 
-### 📊 Market Insights
-- **Popular Securities**: Most widely held securities across all funds
-- **Market Concentration**: Analysis of institutional ownership patterns
-- **Interactive Visualizations**: Bar charts and data tables
+### 📈 Market Insights
+- **Popular Securities**: Most widely held stocks across all funds
+- **Fund Concentration**: Market share distribution among top funds
+- **Market Statistics**: Value distribution and security type breakdown
 
-### ⚙️ Data Processing
-- **Dataset Information**: Comprehensive data quality metrics
-- **Sample Data Preview**: Raw data inspection capabilities
-- **Export Functionality**: CSV export for processed data
+### 📖 About Hedgefolio
+- **SEC 13F Methodology**: Understanding the data source
+- **Filing Schedule**: Quarterly deadlines and data freshness
+- **How to Use**: Investment research workflow guide
+
+### 📬 Email Subscriptions
+- **Sidebar Signup**: Subscribe to portfolio update notifications
+- **Postmark Integration**: Transactional email delivery
 
 ## Technology Stack
 
 - **Frontend**: Streamlit
+- **Database**: PostgreSQL (with SQLAlchemy ORM)
 - **Data Processing**: Pandas, NumPy
-- **Visualizations**: Plotly, Seaborn
-- **Market Data**: Yahoo Finance API (yfinance)
-- **Data Source**: SEC 13F filings (TSV format)
-- **Environment**: Python 3.11+
+- **Visualizations**: Plotly
+- **Market Data**: Yahoo Finance API
+- **Email**: Postmark SDK
+- **Data Source**: SEC EDGAR 13F filings
 
 ## Installation
 
 ### Prerequisites
-- Python 3.11 or higher
+- Python 3.11+
+- PostgreSQL database
 - pip package manager
-- Git
 
 ### Setup Instructions
 
-### Local Development Setup
-
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/kaljuvee/hedge-fund-index.git
-   cd hedge-fund-index
+   git clone https://github.com/your-repo/hedgefolio.git
+   cd hedgefolio
    ```
 
-2. **Install dependencies**
+2. **Create virtual environment**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # Linux/Mac
+   # or: .venv\Scripts\activate  # Windows
+   ```
+
+3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Set up environment variables**
+4. **Configure environment variables**
+   
+   Create a `.env` file in the project root:
    ```bash
-   # Create .env file (do not commit to repository)
-   echo "OPENAI_API_KEY=your_openai_api_key_here" > .env
+   # Database
+   DB_URL=postgresql://user:password@host:port/database
+   DB_SCHEMA=hedgefolio
+   
+   # Email (Postmark)
+   POSTMARK_API_KEY=your_postmark_api_key
+   POSTMARK_FROM_EMAIL=noreply@yourdomain.com
+   
+   # Optional: AI features
+   OPENAI_API_KEY=your_openai_api_key
    ```
 
-4. **Prepare data**
+5. **Initialize the database and load data**
    ```bash
-   # Run the automated setup script
-   python setup_data.py
-   ```
-   
-   This script will:
-   - Reassemble the large INFOTABLE.tsv from 4 smaller chunks
-   - Verify all required data files are present
-   - Test data loading functionality
-   
-   **Manual setup (alternative):**
-   ```bash
-   # If you prefer manual setup
-   python utils/reassemble_data.py
+   python tasks/setup_data.py
    ```
 
-5. **Run the application**
+6. **Run the application**
    ```bash
    streamlit run Home.py
    ```
 
-6. **Access the application**
+7. **Access the application**
    - Open your browser to `http://localhost:8501`
 
-### Streamlit Cloud Deployment
+## Data Management Tasks
 
-1. **Fork or upload** the repository to GitHub
-2. **Connect to Streamlit Cloud** at https://share.streamlit.io/
-3. **Set environment variables** in the Streamlit Cloud dashboard:
-   - `OPENAI_API_KEY`: Your OpenAI API key for sector classification
-4. **Deploy** - Streamlit Cloud will automatically detect the app and deploy it
+### `tasks/setup_data.py` - Initial Setup & Full Data Load
 
-**Note**: The app is configured to work on Streamlit Cloud with:
-- File watching disabled to avoid inotify limits
-- Optimized settings for cloud deployment
-- Proper error handling for large datasets
+Use this script for initial setup or to reload all data:
 
-## Data Processing & AI Integration
-
-### 🔍 **Data Extraction Pipeline**
-
-The application uses a multi-layered approach to extract and classify financial data:
-
-#### **1. SEC 13F Data Processing**
-- **Source**: SEC 13F quarterly filings from EDGAR database
-- **Format**: Tab-separated values (TSV) files
-- **Processing**: Traditional data processing (no AI) - automated chunking and reassembly for large datasets
-- **Coverage**: All institutional investment managers with >$100M AUM
-- **AI Usage**: None - this step uses standard pandas data processing
-
-#### **2. Ticker Symbol Extraction**
-The system uses a three-tier approach to map company names to stock tickers:
-
-**Tier 1: CSV Database Lookup**
-- **File**: `data/company_ticker.csv`
-- **Content**: Pre-mapped company names → ticker symbols
-- **Source**: Manual entries, Yahoo Finance, OpenAI discoveries
-- **Performance**: Instant lookup, highest accuracy
-
-**Tier 2: Local Pattern Matching**
-- **Method**: Hardcoded mapping for major companies
-- **Examples**: "APPLE INC" → "AAPL", "MICROSOFT CORP" → "MSFT"
-- **Performance**: Fast, covers ~30 major companies
-
-**Tier 3: OpenAI AI Classification**
-- **Method**: GPT-3.5-turbo API calls
-- **Prompt**: "Given company name, provide stock ticker symbol"
-- **Caching**: Results automatically saved to CSV for future use
-- **Performance**: ~1-2 seconds per company, high accuracy
-
-#### **3. Sector Classification**
-Similar three-tier approach for industry classification:
-
-**Tier 1: CSV Database**
-- **Source**: Pre-classified sectors from previous runs
-- **Coverage**: Companies already processed
-
-**Tier 2: Yahoo Finance API**
-- **Method**: Direct API calls to Yahoo Finance
-- **Data**: Real-time sector information
-- **Limitations**: Not all companies have clear sector data
-
-**Tier 3: OpenAI AI Classification**
-- **Method**: GPT-3.5-turbo with financial context
-- **Prompt**: "Classify company into sector (Technology, Healthcare, Financial Services, etc.)"
-- **Context**: Includes company name and ticker for accuracy
-- **Output**: Standardized sector names
-
-#### **4. ETF Detection**
-- **Method**: Pattern matching + Yahoo Finance data
-- **Keywords**: "ETF", "EXCHANGE TRADED FUND", "TRUST", "FUND"
-- **Classification**: All ETFs marked as "ETF" sector
-
-### 🤖 **AI/GenAI Integration Points**
-
-#### **OpenAI GPT-3.5-turbo Usage**
-
-**1. Ticker Symbol Discovery**
-```python
-# When company name not in database
-ticker = get_ticker_from_openai("HESS CORP")  # Returns "HES"
-```
-
-**2. Sector Classification**
-```python
-# When Yahoo Finance lacks sector data
-sector = get_sector_from_openai("BRIDGEBIO PHARMA INC", "BBIO")  # Returns "Healthcare"
-```
-
-**3. Intelligent Fallbacks**
-- **Primary**: Yahoo Finance API (fastest, most reliable)
-- **Secondary**: OpenAI classification (when primary fails)
-- **Tertiary**: Manual classification (for edge cases)
-
-#### **AI Prompt Engineering**
-
-**Ticker Extraction Prompt:**
-```
-Given the company name below, provide the most likely stock ticker symbol.
-Return ONLY the ticker symbol, nothing else.
-
-Company: HESS CORP
-Ticker: HES
-```
-
-**Sector Classification Prompt:**
-```
-Given the company information below, provide the most likely sector/industry classification.
-Return ONLY the sector name, nothing else.
-
-Company: BRIDGEBIO PHARMA INC
-Ticker: BBIO
-
-Common sectors include: Technology, Healthcare, Financial Services, Consumer Cyclical, 
-Consumer Defensive, Industrials, Energy, Basic Materials, Real Estate, Communication Services, 
-Utilities, etc.
-
-Sector: Healthcare
-```
-
-#### **Caching & Performance Optimization**
-
-**1. CSV Database**
-- **File**: `data/company_ticker.csv`
-- **Structure**: company_name, ticker, sector, source, last_updated
-- **Auto-update**: New discoveries automatically saved
-- **Performance**: Eliminates repeated API calls
-
-**2. In-Memory Caching**
-- **Duration**: Session-based caching
-- **Scope**: OpenAI API responses
-- **Benefit**: Reduces API costs and latency
-
-**3. Smart Updates**
-- **Logic**: Only update when better data available
-- **Priority**: manual > yfinance > openai > auto
-- **Preservation**: Won't overwrite known sectors with "Unknown"
-
-### 📊 **Data Flow Architecture**
-
-```
-SEC 13F Data → Company Names → Ticker Lookup → Sector Classification → Portfolio Analysis
-     ↓              ↓              ↓                    ↓                    ↓
-  Raw Files    Text Fields    CSV + AI + YF      CSV + AI + YF      Treemap + Metrics
-```
-
-### 🔧 **Configuration & Setup**
-
-**Environment Variables:**
 ```bash
-OPENAI_API_KEY=your_openai_api_key_here  # Required for AI classification
+# Full setup: reassemble chunks, check duplicates, load to DB, verify
+python tasks/setup_data.py
 ```
 
-**API Usage:**
-- **Yahoo Finance**: Free, no API key required
-- **OpenAI**: Pay-per-use, requires API key
-- **Rate Limiting**: Built-in delays to respect API limits
+**What it does:**
+1. ✅ Checks required packages are installed
+2. 📦 Reassembles INFOTABLE.tsv from chunks (if needed)
+3. 🔍 Verifies all data files are present
+4. 🗄️ Creates database schema and tables
+5. 📤 Loads all data into the database
+6. ✓ Verifies database integrity
 
-## Data Structure
+### `tasks/data_sync.py` - Data Synchronization
 
-The application processes SEC 13F filing data with the following key components:
+Use this script for ongoing data maintenance:
 
-### Data Chunking Approach
-Due to GitHub's 100MB file size limit, the large INFOTABLE.tsv file (338MB) is split into 4 smaller chunks:
-- `INFOTABLE_chunk_1.tsv` (~85MB)
-- `INFOTABLE_chunk_2.tsv` (~85MB) 
-- `INFOTABLE_chunk_3.tsv` (~84MB)
-- `INFOTABLE_chunk_4.tsv` (~84MB)
+```bash
+# Full sync (download, load, verify)
+python tasks/data_sync.py
 
-The setup script automatically reassembles these chunks into the full dataset.
+# Only verify database integrity
+python tasks/data_sync.py --verify
 
-### Enhanced Search Engine
-The application includes an advanced search engine with:
-- **Indexed Lookups**: Pre-built indexes for fast fund and security searches
-- **Fuzzy Matching**: Intelligent partial matching for fund names and tickers
-- **Multi-key Search**: Search by company name, ticker symbol, or CUSIP
-- **Performance Optimization**: Efficient data structures for large dataset queries
+# Only load existing data files to database
+python tasks/data_sync.py --load-only
 
-### INFOTABLE.tsv
-Contains detailed holdings information:
-- `NAMEOFISSUER`: Security name
-- `VALUE`: Market value of holdings
-- `SSHPRNAMT`: Number of shares or principal amount
-- `CUSIP`: Security identifier
-- `PUTCALL`: Options type (if applicable)
+# Clean up data files after verifying DB (removes TSV files)
+python tasks/data_sync.py --cleanup
+```
 
-### COVERPAGE.tsv
-Contains fund information:
-- `FILINGMANAGER_NAME`: Fund/manager name
-- `ACCESSION_NUMBER`: Unique filing identifier
-- `REPORTCALENDARORQUARTER`: Reporting period
+**Available options:**
+| Option | Description |
+|--------|-------------|
+| `--download-only` | Only download new SEC data |
+| `--load-only` | Only load existing data to database |
+| `--verify` | Only verify database integrity |
+| `--cleanup` | Clean up data files after DB verification |
 
-### SUMMARYPAGE.tsv
-Contains portfolio summaries:
-- `TABLEVALUETOTAL`: Total portfolio value
-- `TABLEENTRYTOTAL`: Number of holdings
+### Scheduling Daily Updates
 
-## Advanced Features
+To run data sync daily, add a cron job:
 
-### 🗺️ Interactive Treemap Visualization
+```bash
+# Edit crontab
+crontab -e
 
-The Fund Analysis page features an advanced treemap visualization that provides:
+# Add this line to run at 6 AM daily
+0 6 * * * cd /path/to/hedgefolio && .venv/bin/python tasks/data_sync.py >> /var/log/hedgefolio-sync.log 2>&1
+```
 
-#### **Hierarchical Organization**
-- **Sector Grouping**: Stocks are organized by industry sector (Technology, Healthcare, Financial, etc.)
-- **Company Level**: Within each sector, individual companies are displayed
-- **Size Representation**: Box size represents portfolio allocation percentage
+## Database Schema
 
-#### **Real-Time Performance Data**
-- **Price Changes**: 1-month price performance from Yahoo Finance
-- **Color Coding**: 
-  - 🔴 **Red**: Stocks that declined in the past month
-  - 🟡 **Yellow**: Neutral performance (near 0% change)
-  - 🟢 **Green**: Stocks that gained value
-- **Dynamic Updates**: Live data fetching for current market conditions
+The application uses PostgreSQL with the following main tables:
 
-#### **Interactive Features**
-- **Hover Information**: Detailed data on each position including:
-  - Company name and ticker
-  - Portfolio percentage
-  - Position value
-  - Number of shares
-  - 1-month price change
-- **Zoom and Pan**: Navigate through large portfolios
-- **Sector Drill-Down**: Click on sectors to explore individual holdings
+| Table | Description |
+|-------|-------------|
+| `submission` | Core filing metadata |
+| `coverpage` | Filing manager information |
+| `summarypage` | Portfolio summary statistics |
+| `infotable` | Individual holdings (860K+ records) |
+| `signature` | Filing signatories |
+| `othermanager` | Co-managers on filings |
+| `company_ticker` | Ticker symbol mappings |
+| `users` | Email subscribers |
 
-#### **Sector Analysis Dashboard**
-- **Sector Distribution**: Table showing allocation by industry
-- **Performance Summary**: Average price changes per sector
-- **Risk Metrics**: Concentration analysis and diversification insights
+## SEC 13F Filing Schedule
 
-### 📊 Data Integration
+13F filings are due **45 days after quarter end**:
 
-The treemap integrates multiple data sources:
-- **SEC 13F Filings**: Portfolio holdings and values
-- **Yahoo Finance**: Real-time price data and sector information
-- **Ticker Mapping**: Automatic company name to ticker symbol conversion
+| Quarter | Period | Filing Deadline |
+|---------|--------|-----------------|
+| Q1 | Jan-Mar | May 15 |
+| Q2 | Apr-Jun | August 14 |
+| Q3 | Jul-Sep | November 14 |
+| Q4 | Oct-Dec | February 14 |
 
-## Usage Examples
+**Note:** Data is a snapshot from the quarter-end date and may be 6-8 weeks old when filed.
 
-### Analyzing a Specific Fund
-1. Navigate to the "Fund Analysis" page
-2. Select a fund from the dropdown (e.g., "VANGUARD GROUP INC")
-3. View portfolio metrics, sector analysis, and interactive treemap
-4. Hover over treemap boxes to see detailed position information
-5. Analyze sector concentration and recent performance
+## Project Structure
 
-### Searching for Securities
-1. Go to "Holdings Explorer"
-2. Enter a security name (e.g., "NVIDIA")
-3. View aggregated holdings and fund ownership
+```
+hedgefolio/
+├── Home.py                    # Main Streamlit application
+├── pages/
+│   ├── 1_🔍_Holdings_Explorer.py
+│   ├── 2_📊_Market_Insights.py
+│   └── 3_📖_About_Hedgefolio.py
+├── utils/
+│   ├── db_util.py            # SQLAlchemy models & data loading
+│   ├── db_queries.py         # Database query functions
+│   ├── email_util.py         # Postmark email integration
+│   ├── yf_util.py            # Yahoo Finance utilities
+│   └── ticker_mapping.py     # Company-to-ticker mapping
+├── tasks/
+│   ├── setup_data.py         # Initial data setup
+│   └── data_sync.py          # Ongoing data synchronization
+├── sql/
+│   └── schema.sql            # Database schema
+├── data/
+│   ├── company_ticker.csv    # Ticker mappings
+│   └── FORM13F_metadata.json # SEC schema documentation
+├── requirements.txt
+├── .env                      # Environment variables (not committed)
+└── README.md
+```
 
-### Market Analysis
-1. Visit "Market Insights"
-2. Explore most popular securities
-3. Analyze institutional ownership patterns
+## Environment Variables
 
-## Sample Output
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DB_URL` | Yes | PostgreSQL connection string |
+| `DB_SCHEMA` | Yes | Database schema name (default: hedgefolio) |
+| `POSTMARK_API_KEY` | No | Postmark API key for email |
+| `POSTMARK_FROM_EMAIL` | No | Sender email address |
+| `OPENAI_API_KEY` | No | OpenAI key for AI features |
 
-The application provides analysis similar to professional financial platforms, including:
+## Deployment
 
-- **Portfolio Value**: $5.53B (example: Vanguard Group Inc)
-- **Total Positions**: 16,744 holdings
-- **Top Holdings**: Apple Inc, Microsoft Corp, NVIDIA Corporation
-- **Interactive Treemap**: Hierarchical visualization with real-time performance data
-- **Sector Analysis**: Technology (45%), Healthcare (20%), Financial (15%), etc.
-- **Performance Metrics**: Average 1-month change: +3.2%, 65% positive movers
-- **Cross-Fund Analysis**: Which institutions hold specific securities
+### Streamlit Cloud
 
-### 🎯 Treemap Interpretation Guide
+1. Push code to GitHub
+2. Connect repository to [Streamlit Cloud](https://share.streamlit.io/)
+3. Add environment variables in Streamlit Cloud dashboard
+4. Deploy
 
-#### **Visual Elements**
-- **Box Size**: Larger boxes = higher portfolio allocation (higher concentration risk)
-- **Color Intensity**: Deeper red/green = larger price movements
-- **Sector Grouping**: Related companies clustered together
+### Docker (Coming Soon)
 
-#### **Risk Analysis**
-- **Concentration Risk**: Large boxes indicate over-concentration
-- **Sector Risk**: Heavy sector weighting may indicate sector-specific bets
-- **Performance Risk**: Red clusters show underperforming sectors
-
-#### **Investment Insights**
-- **Sector Trends**: Green sectors may indicate fund's growth focus
-- **Diversification**: Well-distributed colors suggest balanced approach
-- **Active Management**: Mixed performance suggests active stock selection
+Docker support planned for future release.
 
 ## Data Sources
 
-- **Primary**: SEC 13F filings from EDGAR database
-- **Format**: Tab-separated values (TSV)
-- **Update Frequency**: Quarterly (as per SEC requirements)
-- **Coverage**: All institutional investment managers with >$100M AUM
+- **Primary**: SEC EDGAR 13F filings
+- **Market Data**: Yahoo Finance API
+- **Sector Classification**: Yahoo Finance + OpenAI
 
-## Architecture
+## Disclaimer
 
-```
-hedge-fund-index/
-├── Home.py                # Main Streamlit application
-├── utils/
-│   └── data_processor.py  # SEC 13F data processing utilities
-├── data/
-│   ├── chunks/           # Data chunks (under 100MB each)
-│   └── processed/        # Processed CSV exports
-├── requirements.txt       # Python dependencies
-├── .env                  # Environment variables (not committed)
-└── README.md             # This documentation
-```
+This is not investment advice. Hedgefolio provides information for educational and research purposes only. Past performance does not guarantee future results. Always conduct your own research and consult a financial advisor before making investment decisions.
 
-## Performance Considerations
+## License
 
-- **Data Size**: Handles 3.4M+ holdings records efficiently
-- **Memory Usage**: Optimized pandas operations for large datasets
-- **Caching**: Streamlit session state for data persistence
-- **Loading Time**: Initial data load ~10-15 seconds
-
-## Future Enhancements
-
-### Planned Features
-- **13D/G Filings Integration**: Activist investor tracking
-- **Historical Analysis**: Time-series portfolio changes
-- **AI-Powered Insights**: OpenAI/LangChain document processing
-- **Advanced Visualizations**: Additional chart types and filters
-- **Export Capabilities**: PDF reports and Excel exports
-
-### Technical Improvements
-- **Database Integration**: Replace CSV with PostgreSQL/MongoDB
-- **API Development**: REST API for programmatic access
-- **Real-time Updates**: Automated SEC filing ingestion
-- **Performance Optimization**: Distributed computing for large datasets
+MIT License - See LICENSE file for details.

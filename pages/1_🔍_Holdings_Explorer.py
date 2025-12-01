@@ -11,7 +11,7 @@ from utils.db_queries import (
     check_database_connection,
 )
 
-st.set_page_config(page_title="Holdings Explorer", page_icon="🔍", layout="wide")
+st.set_page_config(page_title="Holdings Explorer | Hedgefolio", page_icon="🔍", layout="wide")
 
 
 def main():

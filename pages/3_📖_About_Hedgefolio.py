@@ -3,7 +3,7 @@ About Hedgefolio - Methodology and Data Sources
 """
 import streamlit as st
 
-st.set_page_config(page_title="About Hedgefolio", page_icon="📖", layout="wide")
+st.set_page_config(page_title="About | Hedgefolio", page_icon="📖", layout="wide")
 
 
 def main():

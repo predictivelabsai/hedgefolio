@@ -15,7 +15,7 @@ from utils.db_queries import (
     check_database_connection,
 )
 
-st.set_page_config(page_title="Market Insights", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Market Insights | Hedgefolio", page_icon="📊", layout="wide")
 
 
 def main():

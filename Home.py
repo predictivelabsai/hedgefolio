@@ -31,7 +31,7 @@ from utils.email_util import validate_email, send_welcome_email, POSTMARK_API_KE
 
 # Page configuration
 st.set_page_config(
-    page_title="Hedge Fund Index",
+    page_title="Hedgefolio",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -201,7 +201,16 @@ def main():
     # Render sidebar
     render_sidebar()
     
-    st.title("📈 Hedge Fund Index - Fund Analysis")
+    # Hero section
+    st.title("📊 Hedgefolio")
+    st.markdown("""
+    ### *Invest like a hedge fund manager*
+    
+    Monitor the portfolios of the world's top hedge funds. Get daily notifications 
+    when institutional investors make moves. See what the smart money is buying and selling.
+    """)
+    
+    st.divider()
     
     # Check database connection
     if not check_database_connection():
@@ -217,6 +226,7 @@ def main():
         return
     
     # Display key metrics
+    st.subheader("📈 Market Overview")
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
