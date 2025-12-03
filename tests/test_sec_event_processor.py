@@ -3,9 +3,14 @@ Unit tests for SEC event data processor module.
 Tests data normalization, extraction, and validation.
 """
 
+import os
+import sys
 import unittest
 from datetime import datetime
 from decimal import Decimal
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.sec_event_processor import (
     normalize_filing_data,

@@ -253,6 +253,7 @@ def get_recent_events(session: Session, days: int = 30, limit: int = 100) -> Lis
     
     except Exception as e:
         logger.error(f"Error retrieving recent events: {e}")
+        session.rollback()
         return []
 
 
@@ -280,6 +281,7 @@ def get_events_by_ticker(session: Session, ticker: str, limit: int = 50) -> List
     
     except Exception as e:
         logger.error(f"Error retrieving events by ticker: {e}")
+        session.rollback()
         return []
 
 
@@ -307,6 +309,7 @@ def get_events_by_filer(session: Session, filer_name: str, limit: int = 50) -> L
     
     except Exception as e:
         logger.error(f"Error retrieving events by filer: {e}")
+        session.rollback()
         return []
 
 
@@ -356,6 +359,7 @@ def get_activist_events(session: Session, days: int = 90, limit: int = 50) -> Li
     
     except Exception as e:
         logger.error(f"Error retrieving activist events: {e}")
+        session.rollback()
         return []
 
 
@@ -382,6 +386,7 @@ def get_amendment_history(session: Session, parent_accession: str) -> List[SecEv
     
     except Exception as e:
         logger.error(f"Error retrieving amendment history: {e}")
+        session.rollback()
         return []
 
 
@@ -448,6 +453,7 @@ def get_stake_timeline(
     
     except Exception as e:
         logger.error(f"Error retrieving stake timeline: {e}")
+        session.rollback()
         return []
 
 
@@ -534,6 +540,7 @@ def get_event_statistics(session: Session, days: int = 30) -> Dict:
     
     except Exception as e:
         logger.error(f"Error retrieving event statistics: {e}")
+        session.rollback()
         return {}
 
 
@@ -578,6 +585,7 @@ def get_top_filers(session: Session, limit: int = 10) -> List[Dict]:
     
     except Exception as e:
         logger.error(f"Error retrieving top filers: {e}")
+        session.rollback()
         return []
 
 
@@ -623,4 +631,5 @@ def get_top_targets(session: Session, limit: int = 10) -> List[Dict]:
     
     except Exception as e:
         logger.error(f"Error retrieving top targets: {e}")
+        session.rollback()
         return []

@@ -18,4 +18,5 @@ sqlalchemy
 psycopg2-binary
 postmarker
 sec-edgar-downloader
+feedparser
 pytest

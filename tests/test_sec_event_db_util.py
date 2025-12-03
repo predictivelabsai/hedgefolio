@@ -3,9 +3,14 @@ Unit tests for SEC event database utilities.
 Tests database operations and queries.
 """
 
+import os
+import sys
 import unittest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.sec_event_db_util import (
     insert_sec_event,
