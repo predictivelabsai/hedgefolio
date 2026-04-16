@@ -17,12 +17,12 @@ CHAT_UI_STYLES = """
   --border-strong: #cbd5e1;
   --accent: #3b82f6;
   --accent-hover: #2563eb;
-  --table-bg: #1e293b;
-  --table-header: #1e293b;
-  --table-border: #334155;
-  --table-stripe: #263348;
-  --table-hover: #334155;
-  --table-text: #f1f5f9;
+  --table-bg: #ffffff;
+  --table-header: #ffffff;
+  --table-border: #e2e8f0;
+  --table-stripe: #ffffff;
+  --table-hover: #f8fafc;
+  --table-text: #111111;
   --code-bg: #f1f5f9;
   --user-bubble: #3b82f6;
   --asst-bubble: #f8fafc;
@@ -133,47 +133,41 @@ CHAT_UI_STYLES = """
   border-collapse: collapse;
   width: 100%;
   margin: 0.5rem 0;
-  background: var(--table-bg, #ffffff);
+  background: #ffffff;
   display: block;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  border: 1px solid var(--table-border, #cbd5e1);
-  border-radius: 0.375rem;
+  border: 1px solid #e2e8f0;
   font-size: 0.85rem;
-  color: var(--text-primary, #1e293b);
+  color: #111111;
 }
 .chat-message-content thead { display: table; width: 100%; table-layout: fixed; }
 .chat-message-content tbody { display: table; width: 100%; table-layout: fixed; }
 .chat-message-content tr { display: table-row; }
 .chat-message-content th, .chat-message-content td {
   display: table-cell;
-  border: 1px solid var(--table-border, #334155);
+  border: 1px solid #e2e8f0;
   padding: 0.4rem 0.5rem;
   text-align: left;
-  color: var(--table-text, #f1f5f9) !important;
+  background: #ffffff;
+  color: #111111;
   white-space: nowrap;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 400;
 }
 .chat-message-content th {
-  background: var(--table-header, #1e293b);
   font-weight: 600;
-  color: var(--table-text, #f1f5f9) !important;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  color: #111111;
+  background: #ffffff;
 }
-.chat-message-content tbody tr:nth-child(even) td {
-  background: var(--table-stripe, #f8fafc);
-}
-.chat-message-content tbody tr:hover td {
-  background: var(--table-hover, #eef2ff);
-}
+.chat-message-content tbody tr:nth-child(even) td { background: #ffffff; }
+.chat-message-content tbody tr:hover td { background: #f8fafc; }
 .chat-message-content td code {
-  background: rgba(255, 255, 255, 0.1);
+  background: #f1f5f9;
   padding: 0.1rem 0.35rem;
   border-radius: 0.25rem;
   font-size: 0.8rem;
-  color: #93c5fd !important;
+  color: #111111;
 }
 
 @keyframes chat-message-in {
@@ -618,13 +612,7 @@ CHAT_UI_STYLES = """
 }
 
 /* === Table column constraints (news results) === */
-.chat-message-content td:nth-child(3) { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
 /* === Responsive === */
-@media (max-width: 900px) {
-  .chat-message-content th:nth-child(5), .chat-message-content td:nth-child(5) { display: none; }
-}
-
 @media (max-width: 768px) {
   .chat-message { max-width: 95%; }
   .welcome-grid { grid-template-columns: 1fr; }
