@@ -202,6 +202,29 @@ def get_fund_concentration(top_n: int = 15) -> str:
         return f"Error fetching fund concentration: {e}"
 
 
+def get_security_type_distribution(limit: int = 20) -> str:
+    """Return the distribution of security types (common stock, options, etc.)
+    across every 13F position in the dataset. Helpful for asking 'what kinds
+    of instruments do hedge funds mostly hold?'"""
+    try:
+        from utils.db_queries import get_security_type_distribution as _types
+        df = _types()
+        if df.empty:
+            return "No security-type data available."
+        df = df.head(limit)
+        total = int(df["Count"].sum()) or 1
+        md = f"**Distribution of security types (top {len(df)} of all 13F positions)**\n\n"
+        md += "| # | Type | Positions | % of total |\n"
+        md += "|---|------|-----------|------------|\n"
+        for i, (_, r) in enumerate(df.iterrows(), 1):
+            cnt = int(r["Count"])
+            pct = cnt / total * 100
+            md += f"| {i} | {r['Type']} | {cnt:,} | {pct:.1f}% |\n"
+        return md
+    except Exception as e:
+        return f"Error fetching security-type distribution: {e}"
+
+
 # ---------------------------------------------------------------------------
 # Activist filings (Schedule 13D / 13G)
 # ---------------------------------------------------------------------------

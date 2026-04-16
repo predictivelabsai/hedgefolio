@@ -15,6 +15,7 @@ from utils.agent_tools import (
     get_market_overview,
     get_popular_securities,
     get_recent_activist_filings,
+    get_security_type_distribution,
     get_top_funds,
     search_activist_filings,
     search_funds,
@@ -81,6 +82,16 @@ TOOLS = [
         get_fund_concentration,
         name="get_fund_concentration",
         description="Return the largest funds by portfolio value to illustrate market concentration.",
+    ),
+    StructuredTool.from_function(
+        get_security_type_distribution,
+        name="get_security_type_distribution",
+        description=(
+            "Return the distribution of security types (COM, PUT, CALL, various ETF "
+            "class labels, etc.) across every position in the 13F dataset. Use when "
+            "the user asks 'what kinds of instruments do hedge funds hold most?' or "
+            "'security type breakdown'."
+        ),
     ),
     StructuredTool.from_function(
         ask_f13_docs,

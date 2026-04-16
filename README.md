@@ -23,9 +23,27 @@ citations from the F13 filing knowledge base.
 
 | Pane   | Contents |
 |--------|----------|
-| Left   | Brand, new-chat button, navigation links (Chat, Portfolio Treemap, Popular Securities, Fund Concentration, Security Types), recent conversations, email subscribe form |
-| Center | AG-UI chat by default; swappable with any chart page via HTMX |
+| Left   | Brand, new-chat button, **5 shortcut buttons** (each pre-fills and submits a chat prompt), recent conversations, email subscribe form |
+| Center | AG-UI chat — the *only* view. All analysis happens here, streamed token-by-token from the agent |
 | Right  | Live thinking trace — every tool call, argument, and completion event streams in |
+
+## Shortcuts (chat-driven)
+
+Everything is a chat query. The left sidebar surfaces five canned prompts as
+shortcut buttons. Clicking one fills the chat input and submits — the agent
+picks the right tool and streams the answer back as a markdown table.
+
+| Shortcut             | Prompt                                                                 | Expected tool |
+|----------------------|-------------------------------------------------------------------------|----------------|
+| Activist Filings     | "Show me the 20 most recent Schedule 13D activist filings …"           | `get_recent_activist_filings` |
+| Top Holdings         | "Show me the top 20 holdings of Bridgewater Associates …"              | `get_fund_holdings` |
+| Popular Securities   | "What are the 20 most popular securities across all hedge funds? …"    | `get_popular_securities` |
+| Top Funds by AUM     | "Who are the top 15 hedge funds by portfolio value? …"                 | `get_top_funds` / `get_fund_concentration` |
+| Security Types       | "What is the distribution of security types across all 13F holdings? …"| `get_security_type_distribution` |
+
+Each shortcut has its own end-to-end regression test in
+`tests/test_shortcuts.py` that asserts both the tool routing and the shape
+of the markdown response.
 
 ## Agent tools
 
@@ -40,6 +58,7 @@ The LangGraph agent has access to these tools (see `utils/agent_tools.py`):
 - `get_fund_concentration(top_n)` — market share by manager
 - `get_recent_activist_filings(days, limit, activist_only)` — Schedule 13D/G filings from EDGAR daily index (updated daily)
 - `search_activist_filings(query)` — search 13D/G filings by filer or subject
+- `get_security_type_distribution(limit)` — instrument-type breakdown across all 13F positions
 - `ask_f13_docs(question)` — RAG over the official SEC 13F readme + schema
 
 ## Data sources & refresh cadence
@@ -181,15 +200,13 @@ schedule.
 | Path                     | Purpose                                         |
 |--------------------------|-------------------------------------------------|
 | `/`                      | Chat (with `?new=1` to start a fresh thread, `?thread=<id>` to resume) |
-| `/activist`              | Schedule 13D/13G filings tracker (filter + search) |
-| `/charts/treemap`        | Portfolio treemap (pick a fund)                |
-| `/charts/popular`        | Top securities across all funds                |
-| `/charts/concentration`  | Top funds market share pie                     |
-| `/charts/types`          | Security-type distribution                     |
 | `/agui/ws/{thread_id}`   | WebSocket — streams chat tokens + tool traces  |
 | `/agui-conv/list`        | HTMX fragment — recent conversations           |
 | `/subscribe`             | HTMX form — email signup                       |
 | `/health`                | JSON liveness probe                            |
+
+All analysis that used to live on `/activist` or `/charts/*` is now driven
+through chat via the left-nav shortcut buttons — there's a single view.
 
 ## Project layout
 
@@ -244,7 +261,7 @@ hedgefolio/
 
 ## Regression tests
 
-A 49-scenario pytest suite lives in `tests/`. Data-dependent tests skip
+A 55-scenario pytest suite lives in `tests/`. Data-dependent tests skip
 automatically when the relevant tables are empty, so the suite can run in
 CI even without the SEC 13F load.
 
@@ -258,18 +275,19 @@ Coverage:
 |-------------------------------|-----------|--------|
 | `tests/test_db.py`            | 7         | schemas, table existence, FK integrity, FTS index |
 | `tests/test_tools.py`         | 11        | every agent tool function (markdown output + error paths) |
-| `tests/test_charts.py`        | 4         | Plotly figure JSON for treemap / bar / pie / types |
-| `tests/test_web.py`           | 11        | all HTTP routes incl. `/activist` filter+search, 6-card welcome |
+| `tests/test_web.py`           | 11        | all HTTP routes, shortcut button presence, removed-pages return 404, runShortcut() JS |
 | `tests/test_activist_parser.py` | 3        | EDGAR daily-index fixed-width parser |
 | `tests/test_rag.py`           | 4         | HTML→text, chunker, FTS retrieval |
 | `tests/test_agent.py`         | 3         | LangGraph agent + tool registration |
-| `tests/test_chat_scenarios.py`| 6         | end-to-end chat: Laurion performance, Situational Awareness holdings, top-by-AUM, "who owns NVIDIA", recent 13Ds, activist-by-filer |
+| `tests/test_chat_scenarios.py`| 6         | end-to-end chat: Laurion, Situational Awareness, top-by-AUM, NVIDIA, recent 13Ds, activist-by-filer |
+| `tests/test_shortcuts.py`     | 10        | each of the 5 left-nav shortcuts (end-to-end LLM) + unit guards (keys unique, tool registration, percentage sanity) |
 
 Run only the fast (non-LLM, no-network) subset:
 
 ```bash
 .venv/bin/python -m pytest tests/ -v -m "not slow" \
-    --ignore=tests/test_chat_scenarios.py
+    --ignore=tests/test_chat_scenarios.py \
+    --ignore=tests/test_shortcuts.py
 ```
 
 ## Disclaimer
