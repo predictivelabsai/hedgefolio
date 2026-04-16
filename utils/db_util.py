@@ -530,53 +530,62 @@ def load_othermanager2_data(data_dir: str, session: Session, batch_size: int = 1
 
 
 def load_infotable_data(data_dir: str, session: Session, batch_size: int = 5000):
-    """Load INFOTABLE data from chunks directory into the database."""
+    """Load INFOTABLE data into the database.
+
+    Prefers a pre-chunked ``data/chunks/INFOTABLE_chunk_*.tsv`` layout (git-
+    committed release), but falls back to a single ``data/INFOTABLE.tsv``
+    — the layout produced by unzipping the SEC's published quarterly dataset.
+    """
     chunks_dir = Path(data_dir) / "chunks"
-    if not chunks_dir.exists():
-        print(f"Chunks directory not found: {chunks_dir}")
-        return
-    
-    chunk_files = sorted(chunks_dir.glob("INFOTABLE_chunk_*.tsv"))
+    chunk_files: list[Path] = []
+    if chunks_dir.exists():
+        chunk_files = sorted(chunks_dir.glob("INFOTABLE_chunk_*.tsv"))
+
+    single_file = Path(data_dir) / "INFOTABLE.tsv"
+    if not chunk_files and single_file.exists():
+        chunk_files = [single_file]
+
     if not chunk_files:
-        print("No INFOTABLE chunk files found")
+        print(f"No INFOTABLE data found (checked {chunks_dir} and {single_file})")
         return
     
     total_records = 0
     for chunk_file in chunk_files:
         print(f"Loading {chunk_file}...")
-        df = pd.read_csv(chunk_file, sep="\t", dtype=str)
-        
-        records = []
-        for _, row in df.iterrows():
-            records.append({
-                "accession_number": row["ACCESSION_NUMBER"],
-                "infotable_sk": safe_int(row["INFOTABLE_SK"]),
-                "name_of_issuer": row["NAMEOFISSUER"],
-                "title_of_class": row["TITLEOFCLASS"],
-                "cusip": row["CUSIP"],
-                "figi": safe_str(row.get("FIGI")),
-                "value": safe_int(row["VALUE"]),
-                "ssh_prn_amt": safe_int(row["SSHPRNAMT"]),
-                "ssh_prn_amt_type": row["SSHPRNAMTTYPE"],
-                "put_call": safe_str(row.get("PUTCALL")),
-                "investment_discretion": row["INVESTMENTDISCRETION"],
-                "other_manager": safe_str(row.get("OTHERMANAGER")),
-                "voting_auth_sole": safe_int(row["VOTING_AUTH_SOLE"]),
-                "voting_auth_shared": safe_int(row["VOTING_AUTH_SHARED"]),
-                "voting_auth_none": safe_int(row["VOTING_AUTH_NONE"]),
-            })
-            
-            if len(records) >= batch_size:
+        file_rows = 0
+        # Stream the file in 50k-row blocks so the 342 MB single-file variant
+        # doesn't blow past 2 GB of RAM via pandas.
+        for df in pd.read_csv(chunk_file, sep="\t", dtype=str, chunksize=50_000):
+            records = []
+            for row in df.itertuples(index=False):
+                records.append({
+                    "accession_number": row.ACCESSION_NUMBER,
+                    "infotable_sk": safe_int(row.INFOTABLE_SK),
+                    "name_of_issuer": row.NAMEOFISSUER,
+                    "title_of_class": row.TITLEOFCLASS,
+                    "cusip": row.CUSIP,
+                    "figi": safe_str(getattr(row, "FIGI", None)),
+                    "value": safe_int(row.VALUE),
+                    "ssh_prn_amt": safe_int(row.SSHPRNAMT),
+                    "ssh_prn_amt_type": row.SSHPRNAMTTYPE,
+                    "put_call": safe_str(getattr(row, "PUTCALL", None)),
+                    "investment_discretion": row.INVESTMENTDISCRETION,
+                    "other_manager": safe_str(getattr(row, "OTHERMANAGER", None)),
+                    "voting_auth_sole": safe_int(row.VOTING_AUTH_SOLE),
+                    "voting_auth_shared": safe_int(row.VOTING_AUTH_SHARED),
+                    "voting_auth_none": safe_int(row.VOTING_AUTH_NONE),
+                })
+                if len(records) >= batch_size:
+                    _upsert_batch(session, InfoTable, records)
+                    records = []
+            if records:
                 _upsert_batch(session, InfoTable, records)
-                records = []
-        
-        if records:
-            _upsert_batch(session, InfoTable, records)
-        
-        session.commit()
-        total_records += len(df)
-        print(f"  Loaded {len(df)} records from {chunk_file.name}")
-    
+            session.commit()
+            file_rows += len(df)
+            print(f"  …committed {file_rows:,} rows")
+        total_records += file_rows
+        print(f"  Loaded {file_rows} records from {chunk_file.name}")
+
     print(f"Total infotable records loaded: {total_records}")
 
 

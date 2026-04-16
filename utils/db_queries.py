@@ -35,24 +35,41 @@ load_dotenv()
 # ============================================================
 
 _engine = None
-_session = None
+_SessionLocal = None
+
+
+def _ensure_engine():
+    """Create the shared engine + session factory once per process."""
+    global _engine, _SessionLocal
+    if _engine is None:
+        _engine = get_engine()
+        from sqlalchemy.orm import sessionmaker
+        _SessionLocal = sessionmaker(bind=_engine)
+    return _SessionLocal
 
 
 def get_db_session() -> Session:
-    """Get or create a database session (singleton pattern for Streamlit)."""
-    global _engine, _session
-    if _session is None:
-        _engine = get_engine()
-        _session = get_session(_engine)
-    return _session
+    """Return a fresh SQLAlchemy session.
+
+    FastHTML serves requests concurrently across threads, so a singleton
+    session is unsafe — any prior exception leaves the transaction aborted
+    and poisons every subsequent query. We hand out a short-lived session
+    per call and let the caller (or the garbage collector) close it.
+    """
+    factory = _ensure_engine()
+    session = factory()
+    # Belt-and-braces: if the session somehow inherits a failed transaction,
+    # roll it back before the query starts.
+    try:
+        session.rollback()
+    except Exception:
+        pass
+    return session
 
 
 def close_session():
-    """Close the database session."""
-    global _session
-    if _session:
-        _session.close()
-        _session = None
+    """Disposed of automatically — kept for compatibility with old callers."""
+    return None
 
 
 # ============================================================

@@ -1,19 +1,20 @@
-
-streamlit
 pandas
 numpy
 plotly
 requests
-openai
-langchain
-langchain-openai
+httpx
 python-dotenv
-beautifulsoup4
-lxml
-openpyxl
-xlrd
-zipfile36
-yfinance
 sqlalchemy
 psycopg2-binary
+yfinance
 postmarker
+
+# FastHTML + streaming chat stack (replaces streamlit)
+python-fasthtml
+uvicorn[standard]
+
+# LLM / agent
+openai
+langchain-core
+langchain-openai
+langgraph

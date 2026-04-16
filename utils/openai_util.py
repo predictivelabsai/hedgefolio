@@ -1,15 +1,31 @@
-import openai
-import os
+"""
+AI utilities for sector classification and ticker symbol lookup.
+Uses the llm_provider factory to support multiple LLM backends (XAI, OpenAI, etc.)
+
+Note: This module maintains backward compatibility with the original OpenAI-specific
+function names, but now uses the configurable LLM provider under the hood.
+"""
+
 from typing import Optional
-import time
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Import from llm_provider
+from utils.llm_provider import (
+    get_llm,
+    classify_sector as _classify_sector,
+    get_ticker_from_llm as _get_ticker,
+    get_provider_name,
+)
+
 load_dotenv()
+
 
 def get_sector_from_openai(company_name: str, ticker: Optional[str] = None) -> Optional[str]:
     """
-    Use OpenAI to determine the most likely sector for a company.
+    Use AI to determine the most likely sector for a company.
+    
+    Note: Despite the name, this now uses the configured LLM provider
+    (XAI by default, or OpenAI if configured).
     
     Args:
         company_name (str): The name of the company
@@ -18,57 +34,15 @@ def get_sector_from_openai(company_name: str, ticker: Optional[str] = None) -> O
     Returns:
         Optional[str]: The sector name or None if error
     """
-    try:
-        # Get OpenAI API key from environment
-        api_key = os.getenv('OPENAI_API_KEY')
-        if not api_key:
-            print("OpenAI API key not found in environment variables")
-            return None
-        
-        # Set up OpenAI client
-        client = openai.OpenAI(api_key=api_key)
-        
-        # Create prompt
-        prompt = f"""
-        Given the company information below, provide the most likely sector/industry classification.
-        Return ONLY the sector name, nothing else.
-        
-        Company: {company_name}
-        Ticker: {ticker if ticker else 'Not provided'}
-        
-        Common sectors include: Technology, Healthcare, Financial Services, Consumer Cyclical, 
-        Consumer Defensive, Industrials, Energy, Basic Materials, Real Estate, Communication Services, 
-        Utilities, etc.
-        
-        Sector:"""
-        
-        # Make API call
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a financial analyst. Provide only the sector name, no additional text."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=20,
-            temperature=0.1
-        )
-        
-        # Extract and clean the response
-        sector = response.choices[0].message.content.strip()
-        
-        # Basic validation - ensure it looks like a sector name
-        if sector and len(sector) < 50 and not sector.startswith("I'm sorry"):
-            return sector
-        else:
-            return None
-            
-    except Exception as e:
-        print(f"Error getting sector from OpenAI for {company_name}: {e}")
-        return None
+    return _classify_sector(company_name, ticker)
+
 
 def get_ticker_from_openai(company_name: str) -> Optional[str]:
     """
-    Use OpenAI to determine the most likely ticker symbol for a company.
+    Use AI to determine the most likely ticker symbol for a company.
+    
+    Note: Despite the name, this now uses the configured LLM provider
+    (XAI by default, or OpenAI if configured).
     
     Args:
         company_name (str): The name of the company
@@ -76,65 +50,8 @@ def get_ticker_from_openai(company_name: str) -> Optional[str]:
     Returns:
         Optional[str]: The ticker symbol or None if error
     """
-    try:
-        # Get OpenAI API key from environment
-        api_key = os.getenv('OPENAI_API_KEY')
-        if not api_key:
-            print("OpenAI API key not found in environment variables")
-            return None
-        
-        # Set up OpenAI client
-        client = openai.OpenAI(api_key=api_key)
-        
-        # Create prompt
-        prompt = f"""
-        Given the company name below, provide the most likely stock ticker symbol.
-        Return ONLY the ticker symbol, nothing else.
-        
-        Company: {company_name}
-        
-        Common ticker examples:
-        - Apple Inc -> AAPL
-        - Microsoft Corporation -> MSFT
-        - Tesla Inc -> TSLA
-        - JPMorgan Chase & Co -> JPM
-        - Goldman Sachs Group Inc -> GS
-        - Hess Corporation -> HES
-        - Advanced Micro Devices Inc -> AMD
-        - Marvell Technology Inc -> MRVL
-        - Discover Financial Services -> DFS
-        - Ansys Inc -> ANSS
-        - Shell PLC -> SHEL
-        - United States Steel Corp -> X
-        - Allstate Corp -> ALL
-        - HCA Healthcare Inc -> HCA
-        - BridgeBio Pharma Inc -> BBIO
-        
-        Ticker:"""
-        
-        # Make API call
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a financial analyst. Provide only the ticker symbol, no additional text."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=10,
-            temperature=0.1
-        )
-        
-        # Extract and clean the response
-        ticker = response.choices[0].message.content.strip().upper()
-        
-        # Basic validation - ensure it looks like a ticker symbol
-        if ticker and len(ticker) <= 6 and ticker.isalnum():
-            return ticker
-        else:
-            return None
-            
-    except Exception as e:
-        print(f"Error getting ticker from OpenAI for {company_name}: {e}")
-        return None
+    return _get_ticker(company_name)
+
 
 def get_ticker_with_fallback(company_name: str, use_cache: bool = True) -> Optional[str]:
     """
@@ -158,14 +75,15 @@ def get_ticker_with_fallback(company_name: str, use_cache: bool = True) -> Optio
     if use_cache and cache_key in get_ticker_with_fallback.cache:
         return get_ticker_with_fallback.cache[cache_key]
     
-    # Get ticker from OpenAI
-    ticker = get_ticker_from_openai(company_name)
+    # Get ticker from LLM
+    ticker = _get_ticker(company_name)
     
     # Cache the result
     if ticker:
         get_ticker_with_fallback.cache[cache_key] = ticker
     
     return ticker
+
 
 def get_sector_with_fallback(company_name: str, ticker: Optional[str] = None, use_cache: bool = True) -> Optional[str]:
     """
@@ -179,7 +97,7 @@ def get_sector_with_fallback(company_name: str, ticker: Optional[str] = None, us
     Returns:
         Optional[str]: The sector name or None if error
     """
-    # Simple in-memory cache (in production, you might want to use Redis or a database)
+    # Simple in-memory cache
     if not hasattr(get_sector_with_fallback, 'cache'):
         get_sector_with_fallback.cache = {}
     
@@ -190,11 +108,46 @@ def get_sector_with_fallback(company_name: str, ticker: Optional[str] = None, us
     if use_cache and cache_key in get_sector_with_fallback.cache:
         return get_sector_with_fallback.cache[cache_key]
     
-    # Get sector from OpenAI
-    sector = get_sector_from_openai(company_name, ticker)
+    # Get sector from LLM
+    sector = _classify_sector(company_name, ticker)
     
     # Cache the result
     if sector:
         get_sector_with_fallback.cache[cache_key] = sector
     
     return sector
+
+
+def get_current_provider() -> str:
+    """Get the name of the current LLM provider being used."""
+    return get_provider_name()
+
+
+def is_llm_available() -> bool:
+    """Check if an LLM provider is available."""
+    return get_llm().is_available()
+
+
+# Test
+if __name__ == "__main__":
+    print(f"Current LLM Provider: {get_current_provider()}")
+    print(f"LLM Available: {is_llm_available()}")
+    
+    if is_llm_available():
+        # Test sector classification
+        print("\nTesting sector classification:")
+        sector = get_sector_from_openai("Apple Inc", "AAPL")
+        print(f"  Apple Inc: {sector}")
+        
+        sector = get_sector_from_openai("JPMorgan Chase & Co", "JPM")
+        print(f"  JPMorgan Chase: {sector}")
+        
+        # Test ticker lookup
+        print("\nTesting ticker lookup:")
+        ticker = get_ticker_from_openai("Microsoft Corporation")
+        print(f"  Microsoft Corporation: {ticker}")
+        
+        ticker = get_ticker_from_openai("Tesla Inc")
+        print(f"  Tesla Inc: {ticker}")
+    else:
+        print("\nNo LLM configured. Set XAI_API_KEY or OPENAI_API_KEY in .env")

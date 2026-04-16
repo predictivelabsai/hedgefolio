@@ -1,0 +1,76 @@
+services:
+  # ---------------------------------------------------------------------------
+  # Web app — FastHTML 3-pane chat + chart pages. Coolify reverse-proxies
+  # hedgefolio.app to host port 9011 → container port 5011.
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hedgefolio-web
+    container_name: hedgefolio-web
+    ports:
+      - "9011:5011"
+    environment:
+      - PORT=5011
+      - DB_URL=${DB_URL}
+      - DB_SCHEMA=${DB_SCHEMA:-hedgefolio}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - GROK_MODEL=${GROK_MODEL:-grok-4-fast-reasoning}
+      - LLM_PROVIDER=${LLM_PROVIDER:-XAI}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - POSTMARK_API_KEY=${POSTMARK_API_KEY:-}
+      - TO_EMAIL=${TO_EMAIL:-}
+      - FROM_EMAIL=${FROM_EMAIL:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SEC_USER_AGENT=${SEC_USER_AGENT:-Hedgefolio/0.1 (kaljuvee@gmail.com)}
+    volumes:
+      # Persist the downloaded SEC zip + extracted TSVs so a container rebuild
+      # doesn't require a full re-download.
+      - hedgefolio-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5011/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    # Coolify will populate labels automatically based on the service's domain
+    # config. If you're running compose directly behind Traefik, uncomment:
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.hedgefolio.rule=Host(`hedgefolio.app`)"
+    #   - "traefik.http.routers.hedgefolio.entrypoints=websecure"
+    #   - "traefik.http.routers.hedgefolio.tls.certresolver=letsencrypt"
+    #   - "traefik.http.services.hedgefolio.loadbalancer.server.port=5011"
+
+  # ---------------------------------------------------------------------------
+  # Scheduler — runs the daily 13D/G sync and weekly 13F refresh inside a
+  # tiny cron container. Skip this if you'd rather use Coolify's built-in
+  # "Scheduled Tasks" feature (see README § Coolify deployment).
+  #
+  # Activate with:  docker compose --profile scheduler up -d
+  # ---------------------------------------------------------------------------
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    image: hedgefolio-scheduler
+    container_name: hedgefolio-scheduler
+    environment:
+      - DB_URL=${DB_URL}
+      - DB_SCHEMA=${DB_SCHEMA:-hedgefolio}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+      - GROK_MODEL=${GROK_MODEL:-grok-4-fast-reasoning}
+      - SEC_USER_AGENT=${SEC_USER_AGENT:-Hedgefolio/0.1 (kaljuvee@gmail.com)}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - hedgefolio-data:/app/data
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["scheduler"]
+
+volumes:
+  hedgefolio-data:

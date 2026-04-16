@@ -1,0 +1,14 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+.env.local
+.pytest_cache
+tests
+img
+.github
+.streamlit
+*.log
+data/chunks

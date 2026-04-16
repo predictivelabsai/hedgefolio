@@ -1,250 +1,282 @@
 # Hedgefolio
 
-**Invest like a hedge fund manager.** Monitor the portfolios of the world's top hedge funds through SEC 13F filings analysis.
+**Invest like a hedge fund manager.** A 3-pane agentic chat UI over SEC 13F
+filings. Ask questions in natural language; get live queries over hundreds of
+hedge-fund portfolios answered with markdown tables, Plotly charts, and
+citations from the F13 filing knowledge base.
 
-## Overview
+## Stack
 
-Hedgefolio is a comprehensive hedge fund analysis platform built with Streamlit and PostgreSQL. It processes SEC 13F filings to provide insights into institutional investment patterns, allowing retail investors to see what the smart money is buying and selling.
+- **Frontend**: [FastHTML](https://fastht.ml) + HTMX + WebSockets + Plotly.js
+  (no Streamlit).
+- **Agent**: [LangGraph](https://langchain-ai.github.io/langgraph/) react agent
+  with tool-calling, streamed token-by-token via `astream_events(v2)` to the
+  browser.
+- **LLM**: xAI Grok via the OpenAI-compatible `/v1` endpoint.
+- **Database**: PostgreSQL (schemas: `hedgefolio`, `hedgefolio_rag`).
+- **RAG**: Postgres full-text search (`to_tsvector`) over the official SEC
+  Form 13F readme + schema metadata. No extra vector store needed.
+- **Deploy**: Docker + docker-compose, exposed on host port `9011` → container
+  port `5011`. Coolify reverse-proxies `hedgefolio.app` to that port.
 
-## Features
+## 3-pane layout
 
-### 📊 Fund Analysis (Home Page)
-- **Portfolio Treemaps**: Interactive visualization of fund holdings by sector
-- **Real-time Price Data**: 1-month price changes from Yahoo Finance
-- **Sector Analysis**: Portfolio breakdown by industry
-- **Top Holdings**: Detailed position information with values and percentages
+| Pane   | Contents |
+|--------|----------|
+| Left   | Brand, new-chat button, navigation links (Chat, Portfolio Treemap, Popular Securities, Fund Concentration, Security Types), recent conversations, email subscribe form |
+| Center | AG-UI chat by default; swappable with any chart page via HTMX |
+| Right  | Live thinking trace — every tool call, argument, and completion event streams in |
 
-### 🔍 Holdings Explorer
-- **Security Search**: Find which funds hold specific stocks
-- **Cross-Fund Analysis**: Compare positions across multiple funds
-- **Aggregated Data**: Total value and share counts across all holders
+## Agent tools
 
-### 📈 Market Insights
-- **Popular Securities**: Most widely held stocks across all funds
-- **Fund Concentration**: Market share distribution among top funds
-- **Market Statistics**: Value distribution and security type breakdown
+The LangGraph agent has access to these tools (see `utils/agent_tools.py`):
 
-### 📖 About Hedgefolio
-- **SEC 13F Methodology**: Understanding the data source
-- **Filing Schedule**: Quarterly deadlines and data freshness
-- **How to Use**: Investment research workflow guide
+- `get_market_overview` — dataset-wide totals
+- `search_funds(query)` — fuzzy fund search
+- `get_top_funds(top_n)` — leaderboard by AUM
+- `get_fund_holdings(fund_name)` — top positions for a fund
+- `search_securities(query)` — which funds hold a given stock
+- `get_popular_securities(top_n)` — most crowded trades
+- `get_fund_concentration(top_n)` — market share by manager
+- `get_recent_activist_filings(days, limit, activist_only)` — Schedule 13D/G filings from EDGAR daily index (updated daily)
+- `search_activist_filings(query)` — search 13D/G filings by filer or subject
+- `ask_f13_docs(question)` — RAG over the official SEC 13F readme + schema
 
-### 📬 Email Subscriptions
-- **Sidebar Signup**: Subscribe to portfolio update notifications
-- **Postmark Integration**: Transactional email delivery
+## Data sources & refresh cadence
 
-## Technology Stack
+| Source | Endpoint | Refresh | Script |
+|--------|----------|---------|--------|
+| 13F holdings (`hedgefolio.*`) | `sec.gov/files/structureddata/data/form-13f-data-sets/YYYYqQ_form13f.zip` rolling 3-month windows | quarterly | `tasks/download_sec_13f.py` |
+| Activist filings (`hedgefolio.activist_filing`) | `sec.gov/Archives/edgar/daily-index/YYYY/QTRQ/form.YYYYMMDD.idx` | **daily** — 13D/G are filed continuously, indexed every business day | `tasks/sync_activist.py` |
+| F13 RAG (`hedgefolio_rag.*`) | local `data/FORM13F_readme.htm` + `data/FORM13F_metadata.json` | whenever SEC publishes a new spec | `tasks/setup_rag.py` |
 
-- **Frontend**: Streamlit
-- **Database**: PostgreSQL (with SQLAlchemy ORM)
-- **Data Processing**: Pandas, NumPy
-- **Visualizations**: Plotly
-- **Market Data**: Yahoo Finance API
-- **Email**: Postmark SDK
-- **Data Source**: SEC EDGAR 13F filings
+Recommended cron on the Coolify host:
 
-## Installation
+```cron
+# Daily at 06:00 UTC — pick up yesterday's 13D/G filings + enrich headers
+0 6 * * *   cd /app && .venv/bin/python tasks/sync_activist.py --days 7 --enrich 200
 
-### Prerequisites
-- Python 3.11+
-- PostgreSQL database
-- pip package manager
-
-### Setup Instructions
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-repo/hedgefolio.git
-   cd hedgefolio
-   ```
-
-2. **Create virtual environment**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # Linux/Mac
-   # or: .venv\Scripts\activate  # Windows
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment variables**
-   
-   Create a `.env` file in the project root:
-   ```bash
-   # Database
-   DB_URL=postgresql://user:password@host:port/database
-   DB_SCHEMA=hedgefolio
-   
-   # Email (Postmark)
-   POSTMARK_API_KEY=your_postmark_api_key
-   POSTMARK_FROM_EMAIL=noreply@yourdomain.com
-   
-   # Optional: AI features
-   OPENAI_API_KEY=your_openai_api_key
-   ```
-
-5. **Initialize the database and load data**
-   ```bash
-   python tasks/setup_data.py
-   ```
-
-6. **Run the application**
-   ```bash
-   streamlit run Home.py
-   ```
-
-7. **Access the application**
-   - Open your browser to `http://localhost:8501`
-
-## Data Management Tasks
-
-### `tasks/setup_data.py` - Initial Setup & Full Data Load
-
-Use this script for initial setup or to reload all data:
-
-```bash
-# Full setup: reassemble chunks, check duplicates, load to DB, verify
-python tasks/setup_data.py
+# Monday at 07:00 UTC — re-check for new quarterly 13F window and reload if found
+0 7 * * 1   cd /app && .venv/bin/python tasks/download_sec_13f.py
 ```
 
-**What it does:**
-1. ✅ Checks required packages are installed
-2. 📦 Reassembles INFOTABLE.tsv from chunks (if needed)
-3. 🔍 Verifies all data files are present
-4. 🗄️ Creates database schema and tables
-5. 📤 Loads all data into the database
-6. ✓ Verifies database integrity
-
-### `tasks/data_sync.py` - Data Synchronization
-
-Use this script for ongoing data maintenance:
+## Quickstart
 
 ```bash
-# Full sync (download, load, verify)
-python tasks/data_sync.py
+# 1. Configure .env
+cp .env.example .env   # or edit the existing .env
+# Required: DB_URL, XAI_API_KEY
+# Optional: POSTMARK_API_KEY, JWT_SECRET, GROK_MODEL (default grok-4-fast-reasoning)
 
-# Only verify database integrity
-python tasks/data_sync.py --verify
+# 2. Install dependencies
+python -m venv .venv
+.venv/bin/pip install -r requirements.txt
 
-# Only load existing data files to database
-python tasks/data_sync.py --load-only
+# 3. Apply chat + RAG schemas and ingest the F13 knowledge base
+.venv/bin/python -c "
+from sqlalchemy import text
+from pathlib import Path
+from utils.db_pool import get_pool
+pool = get_pool()
+with pool.get_session() as s:
+    s.execute(text(Path('sql/chat_schema.sql').read_text()))
+    s.execute(text(Path('sql/rag_schema.sql').read_text()))
+"
+.venv/bin/python tasks/setup_rag.py
 
-# Clean up data files after verifying DB (removes TSV files)
-python tasks/data_sync.py --cleanup
+# 4. Load 13F data (only required for the chart pages + fund/holding tools;
+#    the F13 RAG tool and chat infrastructure work without this step).
+.venv/bin/python tasks/setup_data.py
+
+# 5. Run
+.venv/bin/python web_app.py   # → http://localhost:5011
 ```
 
-**Available options:**
-| Option | Description |
-|--------|-------------|
-| `--download-only` | Only download new SEC data |
-| `--load-only` | Only load existing data to database |
-| `--verify` | Only verify database integrity |
-| `--cleanup` | Clean up data files after DB verification |
-
-### Scheduling Daily Updates
-
-To run data sync daily, add a cron job:
+## Docker
 
 ```bash
-# Edit crontab
-crontab -e
+# Web only
+docker compose up --build -d web
+# → UI: http://localhost:9011    Health: http://localhost:9011/health
 
-# Add this line to run at 6 AM daily
-0 6 * * * cd /path/to/hedgefolio && .venv/bin/python tasks/data_sync.py >> /var/log/hedgefolio-sync.log 2>&1
+# Web + scheduler (daily 13D/G sync, weekly 13F refresh inside a cron sidecar)
+docker compose --profile scheduler up --build -d
 ```
 
-## Database Schema
+A named volume `hedgefolio-data` persists the SEC 13F zip and extracted TSVs
+between container rebuilds, so you don't re-download ~90 MB on every deploy.
 
-The application uses PostgreSQL with the following main tables:
+## Coolify deployment (hedgefolio.app)
 
-| Table | Description |
-|-------|-------------|
-| `submission` | Core filing metadata |
-| `coverpage` | Filing manager information |
-| `summarypage` | Portfolio summary statistics |
-| `infotable` | Individual holdings (860K+ records) |
-| `signature` | Filing signatories |
-| `othermanager` | Co-managers on filings |
-| `company_ticker` | Ticker symbol mappings |
-| `users` | Email subscribers |
+**Requirements**: Postgres reachable from the Coolify network, an xAI Grok
+API key.
 
-## SEC 13F Filing Schedule
+### 1. Create the app
 
-13F filings are due **45 days after quarter end**:
+In Coolify → **New Resource → Docker Compose**:
 
-| Quarter | Period | Filing Deadline |
-|---------|--------|-----------------|
-| Q1 | Jan-Mar | May 15 |
-| Q2 | Apr-Jun | August 14 |
-| Q3 | Jul-Sep | November 14 |
-| Q4 | Oct-Dec | February 14 |
+- **Source**: this Git repo.
+- **Compose file**: `docker-compose.yaml` (default).
+- **Service name**: `web`.
+- **Domain**: `hedgefolio.app`.
+- **Port**: set the container port to `5011`. Coolify will publish its own
+  reverse proxy, so the `ports: 9011:5011` mapping is only needed for
+  bare-docker runs — Coolify routes traffic by hitting the container port
+  directly on the internal network.
 
-**Note:** Data is a snapshot from the quarter-end date and may be 6-8 weeks old when filed.
+### 2. Environment variables
 
-## Project Structure
+Copy from `.env.example`. Minimum:
+
+```
+DB_URL=postgresql://user:pass@host:5432/db
+XAI_API_KEY=xai-...
+SEC_USER_AGENT=Hedgefolio/0.1 (you@example.com)
+```
+
+### 3. One-off bootstrap (first deploy only)
+
+Once the `web` service is healthy, open Coolify's **Terminal** on the
+container and run:
+
+```bash
+# Apply chat + RAG + activist schemas and ingest the F13 knowledge base.
+python -c "from sqlalchemy import text; from pathlib import Path; \
+  from utils.db_pool import get_pool; pool=get_pool(); \
+  [pool.get_session().__enter__().execute(text(Path(f).read_text())) \
+   for f in ('sql/chat_schema.sql','sql/rag_schema.sql','sql/activist_schema.sql')]"
+python tasks/setup_rag.py
+
+# Load the latest SEC 13F quarter (~10-30 min).
+python tasks/download_sec_13f.py
+
+# Backfill 30 days of 13D/G activist filings + resolve the first 500 issuers.
+python tasks/sync_activist.py --days 30 --enrich 500
+```
+
+### 4. Keep data fresh — choose one
+
+**Option A: Coolify Scheduled Tasks** (recommended — no extra container).
+In your web service's settings → **Scheduled Tasks**:
+
+| Name              | Schedule       | Command                                                        |
+|-------------------|----------------|----------------------------------------------------------------|
+| Daily 13D/G sync  | `0 6 * * *`    | `python tasks/sync_activist.py --days 7 --enrich 300`         |
+| Weekly 13F refresh| `0 7 * * 1`    | `python tasks/download_sec_13f.py`                            |
+
+**Option B: Scheduler sidecar container**. Enable the `scheduler` profile in
+compose (Coolify UI → "Compose Profile" → add `scheduler`) and the cron
+container defined by `Dockerfile.scheduler` will run both jobs on a built-in
+schedule.
+
+### 5. Monitoring
+
+- Health: `GET /health` → `{"status":"ok","db":true,"agent":true}`.
+- Container logs stream the web request log + any agent tool-call errors.
+- Scheduler sidecar logs to `docker logs hedgefolio-scheduler` and to
+  `/var/log/hedgefolio.log` inside the container.
+
+## Endpoints
+
+| Path                     | Purpose                                         |
+|--------------------------|-------------------------------------------------|
+| `/`                      | Chat (with `?new=1` to start a fresh thread, `?thread=<id>` to resume) |
+| `/activist`              | Schedule 13D/13G filings tracker (filter + search) |
+| `/charts/treemap`        | Portfolio treemap (pick a fund)                |
+| `/charts/popular`        | Top securities across all funds                |
+| `/charts/concentration`  | Top funds market share pie                     |
+| `/charts/types`          | Security-type distribution                     |
+| `/agui/ws/{thread_id}`   | WebSocket — streams chat tokens + tool traces  |
+| `/agui-conv/list`        | HTMX fragment — recent conversations           |
+| `/subscribe`             | HTMX form — email signup                       |
+| `/health`                | JSON liveness probe                            |
+
+## Project layout
 
 ```
 hedgefolio/
-├── Home.py                    # Main Streamlit application
-├── pages/
-│   ├── 1_🔍_Holdings_Explorer.py
-│   ├── 2_📊_Market_Insights.py
-│   └── 3_📖_About_Hedgefolio.py
-├── utils/
-│   ├── db_util.py            # SQLAlchemy models & data loading
-│   ├── db_queries.py         # Database query functions
-│   ├── email_util.py         # Postmark email integration
-│   ├── yf_util.py            # Yahoo Finance utilities
-│   └── ticker_mapping.py     # Company-to-ticker mapping
-├── tasks/
-│   ├── setup_data.py         # Initial data setup
-│   └── data_sync.py          # Ongoing data synchronization
-├── sql/
-│   └── schema.sql            # Database schema
-├── data/
-│   ├── company_ticker.csv    # Ticker mappings
-│   └── FORM13F_metadata.json # SEC schema documentation
+├── web_app.py                    # FastHTML app: routes, 3-pane layout, chart pages
+├── Dockerfile
+├── docker-compose.yaml
 ├── requirements.txt
-├── .env                      # Environment variables (not committed)
-└── README.md
+├── sql/
+│   ├── schema.sql                # existing 13F schema
+│   ├── chat_schema.sql           # chat_conversations + chat_messages
+│   ├── rag_schema.sql            # hedgefolio_rag.documents + chunks
+│   └── activist_schema.sql       # hedgefolio.activist_filing (13D/G tracker)
+├── tasks/
+│   ├── setup_data.py             # load 13F TSVs → hedgefolio.*
+│   ├── data_sync.py              # ongoing SEC download sync (legacy stub)
+│   ├── download_sec_13f.py       # download + extract + load latest SEC 13F zip
+│   ├── sync_activist.py          # daily 13D/G sync from EDGAR daily index
+│   └── setup_rag.py              # ingest F13 readme + metadata → RAG
+├── utils/
+│   ├── agui/                     # FastHTML chat runtime (core + chat_store + styles)
+│   ├── agent.py                  # LangGraph react agent builder
+│   ├── agent_tools.py            # markdown-returning tool functions
+│   ├── charts.py                 # Plotly figure builders (JSON output)
+│   ├── db_pool.py                # shared SQLAlchemy engine/session pool
+│   ├── db_queries.py             # pandas-returning query helpers
+│   ├── db_util.py                # ORM models + TSV loaders
+│   ├── rag.py                    # F13 docs schema + ingest + search
+│   ├── activist.py               # EDGAR daily-index parser + 13D/G queries
+│   └── email_util.py             # Postmark subscribe emails
+└── data/
+    ├── FORM13F_readme.htm        # source for the RAG knowledge base
+    ├── FORM13F_metadata.json
+    └── company_ticker.csv
 ```
 
-## Environment Variables
+## Environment variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DB_URL` | Yes | PostgreSQL connection string |
-| `DB_SCHEMA` | Yes | Database schema name (default: hedgefolio) |
-| `POSTMARK_API_KEY` | No | Postmark API key for email |
-| `POSTMARK_FROM_EMAIL` | No | Sender email address |
-| `OPENAI_API_KEY` | No | OpenAI key for AI features |
+| Var                 | Required | Notes |
+|---------------------|----------|-------|
+| `DB_URL`            | yes      | Postgres connection string |
+| `DB_SCHEMA`         | no       | defaults to `hedgefolio` |
+| `XAI_API_KEY`       | yes      | xAI Grok via OpenAI-compatible API |
+| `GROK_MODEL`        | no       | defaults to `grok-4-fast-reasoning` |
+| `LLM_PROVIDER`      | no       | currently informational only (agent always uses xAI) |
+| `JWT_SECRET`        | no       | session signing; random generated if absent |
+| `POSTMARK_API_KEY`  | no       | email subscribe welcome mail |
+| `TO_EMAIL`          | no       | Postmark alerts |
+| `FROM_EMAIL`        | no       | Postmark sender |
+| `PORT`              | no       | web_app listen port, default `5011` |
 
-## Deployment
+## Regression tests
 
-### Streamlit Cloud
+A 49-scenario pytest suite lives in `tests/`. Data-dependent tests skip
+automatically when the relevant tables are empty, so the suite can run in
+CI even without the SEC 13F load.
 
-1. Push code to GitHub
-2. Connect repository to [Streamlit Cloud](https://share.streamlit.io/)
-3. Add environment variables in Streamlit Cloud dashboard
-4. Deploy
+```bash
+.venv/bin/python -m pytest tests/ -v
+```
 
-### Docker (Coming Soon)
+Coverage:
 
-Docker support planned for future release.
+| File                          | Scenarios | Covers |
+|-------------------------------|-----------|--------|
+| `tests/test_db.py`            | 7         | schemas, table existence, FK integrity, FTS index |
+| `tests/test_tools.py`         | 11        | every agent tool function (markdown output + error paths) |
+| `tests/test_charts.py`        | 4         | Plotly figure JSON for treemap / bar / pie / types |
+| `tests/test_web.py`           | 11        | all HTTP routes incl. `/activist` filter+search, 6-card welcome |
+| `tests/test_activist_parser.py` | 3        | EDGAR daily-index fixed-width parser |
+| `tests/test_rag.py`           | 4         | HTML→text, chunker, FTS retrieval |
+| `tests/test_agent.py`         | 3         | LangGraph agent + tool registration |
+| `tests/test_chat_scenarios.py`| 6         | end-to-end chat: Laurion performance, Situational Awareness holdings, top-by-AUM, "who owns NVIDIA", recent 13Ds, activist-by-filer |
 
-## Data Sources
+Run only the fast (non-LLM, no-network) subset:
 
-- **Primary**: SEC EDGAR 13F filings
-- **Market Data**: Yahoo Finance API
-- **Sector Classification**: Yahoo Finance + OpenAI
+```bash
+.venv/bin/python -m pytest tests/ -v -m "not slow" \
+    --ignore=tests/test_chat_scenarios.py
+```
 
 ## Disclaimer
 
-This is not investment advice. Hedgefolio provides information for educational and research purposes only. Past performance does not guarantee future results. Always conduct your own research and consult a financial advisor before making investment decisions.
+Not investment advice. Data comes from SEC 13F filings, which are reported
+45 days after quarter-end and therefore 6–8 weeks stale by the time they appear.
 
 ## License
 
-MIT License - See LICENSE file for details.
+MIT — see `LICENSE`.

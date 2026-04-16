@@ -239,3 +239,4 @@ if __name__ == "__main__":
     for email in test_emails:
         print(f"  {email}: {'✓' if validate_email(email) else '✗'}")
 
+
