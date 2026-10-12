@@ -231,11 +231,21 @@ class User(Base):
 # Database Engine and Session Management
 # ============================================================
 
+_ENGINES: dict = {}
+
+
 def get_engine(echo: bool = False):
-    """Create SQLAlchemy engine with the configured database URL."""
+    """Return a process-wide cached SQLAlchemy engine (one pool per process)."""
     if not DB_URL:
         raise ValueError("DB_URL environment variable is not set")
-    return create_engine(DB_URL, echo=echo)
+    eng = _ENGINES.get(echo)
+    if eng is None:
+        eng = create_engine(
+            DB_URL, echo=echo, pool_size=2, max_overflow=3, pool_recycle=300, pool_pre_ping=True,
+            connect_args={"application_name": os.getenv("DB_APPLICATION_NAME", "hedgefolio")},
+        )
+        _ENGINES[echo] = eng
+    return eng
 
 
 def get_session(engine=None) -> Session:

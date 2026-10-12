@@ -29,9 +29,11 @@ class DatabasePool:
             raise ValueError("DB_URL is not set")
         self.engine = create_engine(
             self.database_url,
-            pool_size=5,
-            max_overflow=10,
+            pool_size=2,
+            max_overflow=3,
             pool_pre_ping=True,
+            pool_recycle=300,
+            connect_args={"application_name": os.getenv("DB_APPLICATION_NAME", "hedgefolio")},
         )
         self._session_factory = sessionmaker(bind=self.engine)
 
